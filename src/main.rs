@@ -4,19 +4,29 @@ use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
+use sdl2::rect::Point;
+use sdl2::video::Window;
 use std::time::Duration;
 
 // a chomper. Size increases when eating other pacmen.
 #[derive(Clone, Copy)]
 struct Pacman {
-    x: u32,
-    y: u32,
-    direction: u8,
-    size: u8
+    x: i32,
+    y: i32,
+    direction: i8,
+    size: i32
 }
 impl Pacman {
-    fn draw<T>(self: Pacman, canvas: &mut T) {
+    fn draw(self: Pacman, canvas: &mut Canvas<Window>) {
+        let size_squared = self.size.pow(2);
         // draw circle with a part missing
+        for x in self.x-self.size..self.x+self.size {
+            for y in self.y-self.size..self.y+self.size {
+                if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared {
+                    canvas.draw_point(Point::new(x, y));
+                }
+            }
+        }
     }
 }
 pub fn main() {
@@ -37,6 +47,7 @@ pub fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         for event in event_pump.poll_iter() {
             match event {
