@@ -72,6 +72,12 @@ pub fn main() {
     canvas.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
+
+    let mut left_pressed: bool = false;
+    let mut up_pressed: bool = false;
+    let mut right_pressed: bool = false;
+    let mut down_pressed: bool = false;
+
     'running: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
@@ -80,6 +86,66 @@ pub fn main() {
                 Event::Quit {..} |
                 Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
+                },
+                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
+                    left_pressed = true;
+                    if up_pressed {
+                        player.direction = Direction::UPLEFT;
+                    }
+                    else if down_pressed {
+                        player.direction = Direction::DOWNLEFT;
+                    }
+                    else {
+                        player.direction = Direction::LEFT;
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {
+                    right_pressed = true;
+                    if up_pressed {
+                        player.direction = Direction::UPRIGHT;
+                    }
+                    else if down_pressed {
+                        player.direction = Direction::DOWNRIGHT;
+                    }
+                    else {
+                        player.direction = Direction::RIGHT;
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {
+                    up_pressed = true;
+                    if left_pressed {
+                        player.direction = Direction::UPLEFT;
+                    }
+                    else if right_pressed {
+                        player.direction = Direction::UPRIGHT;
+                    }
+                    else {
+                        player.direction = Direction::UP;
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {
+                    down_pressed = true;
+                    if left_pressed {
+                        player.direction = Direction::DOWNLEFT;
+                    }
+                    else if right_pressed {
+                        player.direction = Direction::DOWNRIGHT;
+                    }
+                    else {
+                        player.direction = Direction::DOWN;
+                    }
+                },
+                Event::KeyUp { keycode: Some(Keycode::Left), ..} => {
+                    left_pressed = false;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Right), ..} => {
+                    right_pressed = false;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Up), ..} => {
+                    up_pressed = false;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Down), ..} => {
+                    down_pressed = false;
                 },
                 _ => {}
             }
