@@ -8,10 +8,11 @@ use sdl2::render::Canvas;
 use sdl2::rect::Point;
 use sdl2::video::Window;
 use std::time::Duration;
+use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Direction {
     LEFT,
     RIGHT,
@@ -31,15 +32,70 @@ struct Pacman {
     size: i32,
     color: Color
 }
+fn angle(x: i32,y: i32) -> f64 {
+    let xf = x as f64;
+    let yf = y as f64;
+    return 180.0*yf.atan2(xf)/PI;
+}
 impl Pacman {
-    fn draw(self: Pacman, canvas: &mut Canvas<Window>) {
+    fn draw(self: Pacman, canvas: &mut Canvas<Window>, draw_mouth: bool) {
         canvas.set_draw_color(self.color);
         let size_squared = self.size.pow(2);
         // draw circle with a part missing
         for x in self.x-self.size..self.x+self.size {
             for y in self.y-self.size..self.y+self.size {
-                if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared {
-                    canvas.draw_point(Point::new(x, y));
+                if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared { //hypotenuse
+                    if (draw_mouth) {
+                        canvas.draw_point(Point::new(x, y));
+                        continue;
+                    }
+                    let mut isbody: bool = false;// not mouth of pacman
+                    let angle=angle(x-self.x, y-self.y);
+                    match self.direction {
+                    Direction::RIGHT => {
+                        if angle > 45.0 || angle < -45.0 {
+                            isbody = true;
+                        }
+                    },
+                    Direction::LEFT => {
+                        if angle < 135.0 && angle > -135.0 {
+                            isbody = true;
+                        }
+                    },
+                    Direction::UP => {
+                        if !(angle > -135.0 && angle < -45.0) {
+                            isbody = true;
+                        }
+                    },
+                    Direction::DOWN => {
+                        if !(angle > 45.0 && angle < 135.0) {
+                            isbody = true;
+                        }
+                    },
+                    Direction::UPLEFT => {
+                        if angle < -180.0 || angle > -90.0 {
+                            isbody = true;
+                        }
+                    },
+                    Direction::UPRIGHT => {
+                        if angle < -90.0 || angle > 0.0 {
+                            isbody = true;
+                        }
+                    },
+                    Direction::DOWNLEFT => {
+                        if angle < 90.0 || angle > 180.0 {
+                            isbody = true;
+                        }
+                    },
+                    Direction::DOWNRIGHT => {
+                        if angle < 0.0 || angle > 90.0 {
+                            isbody = true;
+                        }
+                    },
+                    }
+                    if (isbody) {
+                        canvas.draw_point(Point::new(x, y));
+                    }
                 }
             }
         }
@@ -188,9 +244,9 @@ pub fn main() {
 
         // Draw pacman here.
         for x in 0..NUM_ENEMIES {
-            enemies[x].draw(&mut canvas);
+            enemies[x].draw(&mut canvas, false);
         }
-        player.draw(&mut canvas);
+        player.draw(&mut canvas, false);
         player.move_pacman();
 
         canvas.present();
