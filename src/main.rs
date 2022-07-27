@@ -1,4 +1,5 @@
 extern crate sdl2;
+extern crate rand;
 
 use sdl2::pixels::Color;
 use sdl2::event::Event;
@@ -7,6 +8,8 @@ use sdl2::render::Canvas;
 use sdl2::rect::Point;
 use sdl2::video::Window;
 use std::time::Duration;
+use rand::Rng;
+use rand::rngs::ThreadRng;
 
 #[derive(Clone, Copy)]
 enum Direction {
@@ -55,12 +58,43 @@ impl Pacman {
         }
     }
 }
+fn random_direction(rng: &mut ThreadRng) -> Option<Direction> {
+    let dir: u8 = rng.gen_range(1..8);
+    match dir {
+        1 => {return Some(Direction::LEFT)},
+        2 => {return Some(Direction::RIGHT)},
+        3 => {return Some(Direction::UP)},
+        4 => {return Some(Direction::UPLEFT)},
+        5 => {return Some(Direction::UPRIGHT)},
+        6 => {return Some(Direction::DOWN)},
+        7 => {return Some(Direction::DOWNLEFT)},
+        8 => {return Some(Direction::DOWNRIGHT)},
+        _ => {return None}
+    }
+}
+fn random_color(rng: &mut ThreadRng) -> Color {
+    let red: u8 = rng.gen();
+    let green: u8 = rng.gen();
+    let blue: u8 = rng.gen();
+    return Color::RGB(red, green, blue);
+}
 pub fn main() {
     let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0)};
+    const NUM_ENEMIES:usize = 100;
+    let WINDOW_WIDTH = 800;
+    let WINDOW_HEIGHT = 600;
+    let mut rng = rand::thread_rng();
+
+    let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
+        x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+        y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+        direction:random_direction(&mut rng).unwrap(),
+        size:5,
+        color:random_color(&mut rng)}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem.window("rust-sdl2 demo", 800, 600)
+    let window = video_subsystem.window("rust-sdl2 demo", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .build()
         .unwrap();
@@ -153,9 +187,11 @@ pub fn main() {
         // The rest of the game loop goes here...
 
         // Draw pacman here.
+        for x in 0..NUM_ENEMIES {
+            enemies[x].draw(&mut canvas);
+        }
         player.draw(&mut canvas);
         player.move_pacman();
-
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
