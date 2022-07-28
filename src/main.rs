@@ -111,7 +111,7 @@ impl Pacman {
             }
         }
         for x in 0..best_target.len() {
-            let enemy_distance: f32 = (((enemies[x].x - self.x).pow(2) + (enemies[x].y - self.y).pow(2)) as f32).sqrt();
+            let enemy_distance: f32 = (((best_target[x].x - self.x).pow(2) + (best_target[x].y - self.y).pow(2)) as f32).sqrt();
             if enemy_distance < best_distance || best_distance < 0.0 {
                 best_distance = enemy_distance;
                 nearest = x;
@@ -121,7 +121,7 @@ impl Pacman {
             return;
         }
         let nearest_enemy: Pacman = best_target[nearest];
-        println!("Pacman color={:?} distance={} nearest={:?}", self.color, best_distance, nearest_enemy);
+        //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
         if nearest_enemy.x < self.x {
             if nearest_enemy.y < self.y {
                 self.direction = Direction::UPLEFT;
@@ -309,6 +309,7 @@ pub fn main() {
             enemies[x].draw(&mut canvas, draw_mouth);
             let mut enemy = enemies[x];
             enemy.ai_step(&mut enemies);
+            enemies[x] = enemy;
             enemies[x].move_pacman();
         }
         player.draw(&mut canvas, draw_mouth);
