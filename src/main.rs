@@ -45,8 +45,8 @@ impl Pacman {
         for x in self.x-self.size..self.x+self.size {
             for y in self.y-self.size..self.y+self.size {
                 if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared { //hypotenuse
-                    if (draw_mouth) {
-                        canvas.draw_point(Point::new(x, y));
+                    if draw_mouth {
+                        canvas.draw_point(Point::new(x, y)).unwrap();
                         continue;
                     }
                     let mut isbody: bool = false;// not mouth of pacman
@@ -93,8 +93,8 @@ impl Pacman {
                         }
                     },
                     }
-                    if (isbody) {
-                        canvas.draw_point(Point::new(x, y));
+                    if isbody {
+                        canvas.draw_point(Point::new(x, y)).unwrap();
                     }
                 }
             }
@@ -137,11 +137,11 @@ fn random_color(rng: &mut ThreadRng) -> Color {
 pub fn main() {
     let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0)};
     const NUM_ENEMIES:usize = 100;
-    let WINDOW_WIDTH = 800;
-    let WINDOW_HEIGHT = 600;
+    const WINDOW_WIDTH:u32 = 800;
+    const WINDOW_HEIGHT:u32 = 600;
     let mut rng = rand::thread_rng();
 
-    let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
+    let enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
         x:rng.gen_range(0..WINDOW_WIDTH) as i32,
         y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
         direction:random_direction(&mut rng).unwrap(),
@@ -250,6 +250,7 @@ pub fn main() {
         player.move_pacman();
 
         canvas.present();
+        // Sleep for 1/60th of a second.
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }
