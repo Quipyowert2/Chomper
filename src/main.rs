@@ -12,7 +12,7 @@ use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum Direction {
     LEFT,
     RIGHT,
@@ -24,13 +24,14 @@ enum Direction {
     DOWNRIGHT
 }
 // a chomper. Size increases when eating other pacmen.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Pacman {
     x: i32,
     y: i32,
     direction: Direction,
     size: i32,
-    color: Color
+    color: Color,
+    id: i32
 }
 fn angle(x: i32,y: i32) -> f64 {
     let xf = x as f64;
@@ -100,6 +101,61 @@ impl Pacman {
             }
         }
     }
+    fn ai_step(&mut self, enemies: &Vec<Pacman>) {
+        let mut best_target: Vec<Pacman> = Vec::new();
+        let mut nearest: usize = usize::MAX;
+        let mut best_distance: f32 = -1.0;
+        for x in 0..enemies.len() {
+            if enemies[x].id != self.id && enemies[x].size <= self.size {
+                best_target.push(enemies[x]);
+            }
+        }
+        for x in 0..best_target.len() {
+            let enemy_distance: f32 = (((enemies[x].x - self.x).pow(2) + (enemies[x].y - self.y).pow(2)) as f32).sqrt();
+            if enemy_distance < best_distance || best_distance < 0.0 {
+                best_distance = enemy_distance;
+                nearest = x;
+            }
+        }
+        if nearest == usize::MAX {
+            return;
+        }
+        let nearest_enemy: Pacman = best_target[nearest];
+        println!("Pacman color={:?} distance={} nearest={:?}", self.color, best_distance, nearest_enemy);
+        if nearest_enemy.x < self.x {
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UPLEFT;
+            }
+            else if nearest_enemy.y == self.y {
+                self.direction = Direction::LEFT;
+            }
+            else {
+                self.direction = Direction::DOWNLEFT;
+            }
+        }
+        else if nearest_enemy.x == self.x {
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UP;
+            }
+            else if nearest_enemy.y == self.y {
+                // ???
+            }
+            else {
+                self.direction = Direction::DOWN;
+            }
+        }
+        else {// enemy.x > self.x
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UPRIGHT;
+            }
+            else if nearest_enemy.y == self.y {
+                self.direction = Direction::RIGHT;
+            }
+            else {
+                self.direction = Direction::DOWNRIGHT;
+            }
+        }
+    }
     fn move_pacman(&mut self) {
         match self.direction {
             Direction::RIGHT => {
@@ -135,18 +191,19 @@ fn random_color(rng: &mut ThreadRng) -> Color {
     return Color::RGB(red, green, blue);
 }
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0)};
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0), id:0};
     const NUM_ENEMIES:usize = 100;
     const WINDOW_WIDTH:u32 = 800;
     const WINDOW_HEIGHT:u32 = 600;
     let mut rng = rand::thread_rng();
 
-    let enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
+    let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
         x:rng.gen_range(0..WINDOW_WIDTH) as i32,
         y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
         direction:random_direction(&mut rng).unwrap(),
         size:5,
-        color:random_color(&mut rng)}).collect();
+        color:random_color(&mut rng),
+        id:(x+1) as i32}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -167,6 +224,9 @@ pub fn main() {
     let mut up_pressed: bool = false;
     let mut right_pressed: bool = false;
     let mut down_pressed: bool = false;
+    let mut draw_mouth: bool = false;
+
+    let mut frame_counter: i64 = 0;
 
     'running: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -241,15 +301,22 @@ pub fn main() {
             }
         }
         // The rest of the game loop goes here...
-
+        if frame_counter % 15 == 0 {
+            draw_mouth = !draw_mouth;
+        }
         // Draw pacman here.
         for x in 0..NUM_ENEMIES {
-            enemies[x].draw(&mut canvas, false);
+            enemies[x].draw(&mut canvas, draw_mouth);
+            let mut enemy = enemies[x];
+            enemy.ai_step(&mut enemies);
+            enemies[x].move_pacman();
         }
-        player.draw(&mut canvas, false);
+        player.draw(&mut canvas, draw_mouth);
         player.move_pacman();
 
         canvas.present();
+        
+        frame_counter = frame_counter + 1;
         // Sleep for 1/60th of a second.
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
