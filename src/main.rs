@@ -29,7 +29,7 @@ struct Pacman {
     x: i32,
     y: i32,
     direction: Direction,
-    size: i32,
+    size: f32,
     color: Color,
     id: i32
 }
@@ -41,17 +41,20 @@ fn angle(x: i32,y: i32) -> f64 {
 impl Pacman {
     fn draw(self: Pacman, canvas: &mut Canvas<Window>, draw_mouth: bool) {
         canvas.set_draw_color(self.color);
-        let size_squared = self.size.pow(2);
+        let size_squared = self.size.powf(2.0) as i32;
+        let selfx = self.x as i32;
+        let selfy = self.y as i32;
+        let size = self.size as i32;
         // draw circle with a part missing
-        for x in self.x-self.size..self.x+self.size {
-            for y in self.y-self.size..self.y+self.size {
-                if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared { //hypotenuse
+        for x in selfx-size..selfx+size {
+            for y in selfy-size..selfy+size {
+                if (x - selfx).pow(2)+(y - selfy).pow(2) < size_squared { //hypotenuse
                     if draw_mouth {
                         canvas.draw_point(Point::new(x, y)).unwrap();
                         continue;
                     }
                     let mut isbody: bool = false;// not mouth of pacman
-                    let angle=angle(x-self.x, y-self.y);
+                    let angle=angle(x-selfx, y-selfy);
                     match self.direction {
                     Direction::RIGHT => {
                         if angle > 45.0 || angle < -45.0 {
@@ -101,26 +104,42 @@ impl Pacman {
             }
         }
     }
-    fn ai_step(&mut self, enemies: &Vec<Pacman>) {
-        let mut best_target: Vec<Pacman> = Vec::new();
+    fn can_chomp(&mut self, enemy: Pacman) -> bool {
+        return self.size >= enemy.size &&
+            enemy.x > self.x-((self.size/2.0) as i32) && enemy.x < self.x+((self.size/2.0) as i32) &&
+            enemy.y > self.y-((self.size/2.0) as i32) && enemy.y < self.y+((self.size/2.0) as i32);
+    }
+    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
+        let mut best_target: Vec<i32> = Vec::new();
         let mut nearest: usize = usize::MAX;
         let mut best_distance: f32 = -1.0;
         for x in 0..enemies.len() {
             if enemies[x].id != self.id && enemies[x].size <= self.size {
-                best_target.push(enemies[x]);
+                best_target.push(enemies[x].id);
             }
         }
-        for x in 0..best_target.len() {
-            let enemy_distance: f32 = (((best_target[x].x - self.x).pow(2) + (best_target[x].y - self.y).pow(2)) as f32).sqrt();
+        for x in &best_target {
+            let index = (x-1) as usize;
+            let enemy_distance: f32 = (((enemies[index].x - self.x).pow(2) + (enemies[index].y - self.y).pow(2)) as f32).sqrt();
             if enemy_distance < best_distance || best_distance < 0.0 {
                 best_distance = enemy_distance;
-                nearest = x;
+                nearest = *x as usize;
             }
         }
         if nearest == usize::MAX {
             return;
         }
-        let nearest_enemy: Pacman = best_target[nearest];
+        let nearest_enemy: Pacman = enemies[nearest-1];
+        if self.can_chomp(nearest_enemy) {
+            self.size += ((nearest_enemy.size.powf(2.0) as f64)*PI) as f32;
+            enemies[nearest-1] = Pacman{
+                x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+                y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+                direction:random_direction(rng).unwrap(),
+                size:5.0,
+                color:random_color(rng),
+                id:nearest as i32};
+        }
         //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
         if nearest_enemy.x < self.x {
             if nearest_enemy.y < self.y {
@@ -190,18 +209,18 @@ fn random_color(rng: &mut ThreadRng) -> Color {
     let blue: u8 = rng.gen();
     return Color::RGB(red, green, blue);
 }
+const NUM_ENEMIES:usize = 100;
+const WINDOW_WIDTH:u32 = 800;
+const WINDOW_HEIGHT:u32 = 600;
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0), id:0};
-    const NUM_ENEMIES:usize = 100;
-    const WINDOW_WIDTH:u32 = 800;
-    const WINDOW_HEIGHT:u32 = 600;
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0};
     let mut rng = rand::thread_rng();
 
     let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
         x:rng.gen_range(0..WINDOW_WIDTH) as i32,
         y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
         direction:random_direction(&mut rng).unwrap(),
-        size:5,
+        size:5.0,
         color:random_color(&mut rng),
         id:(x+1) as i32}).collect();
 
@@ -308,7 +327,7 @@ pub fn main() {
         for x in 0..NUM_ENEMIES {
             enemies[x].draw(&mut canvas, draw_mouth);
             let mut enemy = enemies[x];
-            enemy.ai_step(&mut enemies);
+            enemy.ai_step(&mut enemies, &mut rng);
             enemies[x] = enemy;
             enemies[x].move_pacman();
         }
