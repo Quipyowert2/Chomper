@@ -105,15 +105,38 @@ impl Pacman {
         }
     }
     fn can_chomp(&mut self, enemy: Pacman) -> bool {
-        return self.size >= enemy.size &&
-            enemy.x > self.x-((self.size/2.0) as i32) && enemy.x < self.x+((self.size/2.0) as i32) &&
-            enemy.y > self.y-((self.size/2.0) as i32) && enemy.y < self.y+((self.size/2.0) as i32);
+        if self.size < enemy.size {
+            return false;
+        }
+        let distance = (((self.x - enemy.x).pow(2) + (self.y - enemy.y).pow(2)) as f32).sqrt();
+        return distance + enemy.size == self.size
+            || distance + enemy.size < self.size;
+    }
+    fn calculate_new_size(self: Pacman, other: Pacman) -> f32 {
+            // pi r**2 = area
+            let enemy_area = ((other.size.powf(2.0) as f64)*PI) as f32;
+            let self_area = ((self.size.powf(2.0) as f64)*PI) as f32;
+            let combined_area = enemy_area + self_area;
+            // r**2 = area/pi
+            let rsquared = (combined_area as f64)/PI;
+            return rsquared.sqrt() as f32;
     }
     fn ai_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
         let mut best_target: Vec<i32> = Vec::new();
         let mut nearest: usize = usize::MAX;
         let mut best_distance: f32 = -1.0;
         for x in 0..enemies.len() {
+            if enemies[x].id != self.id && self.can_chomp(enemies[x]) {
+                self.size = self.calculate_new_size(enemies[x]);
+                enemies[x] = Pacman{
+                    x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+                    y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+                    direction:random_direction(rng).unwrap(),
+                    size:5.0,
+                    color:random_color(rng),
+                    id:(x+1) as i32};
+                continue;
+            }
             if enemies[x].id != self.id && enemies[x].size <= self.size {
                 best_target.push(enemies[x].id);
             }
@@ -130,16 +153,6 @@ impl Pacman {
             return;
         }
         let nearest_enemy: Pacman = enemies[nearest-1];
-        if self.can_chomp(nearest_enemy) {
-            self.size += ((nearest_enemy.size.powf(2.0) as f64)*PI) as f32;
-            enemies[nearest-1] = Pacman{
-                x:rng.gen_range(0..WINDOW_WIDTH) as i32,
-                y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
-                direction:random_direction(rng).unwrap(),
-                size:5.0,
-                color:random_color(rng),
-                id:nearest as i32};
-        }
         //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
         if nearest_enemy.x < self.x {
             if nearest_enemy.y < self.y {
