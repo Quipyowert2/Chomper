@@ -121,7 +121,21 @@ impl Pacman {
             let rsquared = (combined_area as f64)/PI;
             return rsquared.sqrt() as f32;
     }
-    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
+    fn player_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
+        for x in 0..enemies.len() {
+            if self.can_chomp(enemies[x]) {
+                self.size = self.calculate_new_size(enemies[x]);
+                enemies[x] = Pacman{
+                    x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+                    y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+                    direction:random_direction(rng).unwrap(),
+                    size:5.0,
+                    color:random_color(rng),
+                    id:(x+1) as i32};
+            }
+        }
+    }
+    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, player: &mut Pacman, rng: &mut ThreadRng) {
         let mut best_target: Vec<i32> = Vec::new();
         let mut nearest: usize = usize::MAX;
         let mut best_distance: f32 = -1.0;
@@ -136,6 +150,12 @@ impl Pacman {
                     color:random_color(rng),
                     id:(x+1) as i32};
                 continue;
+            }
+            if self.can_chomp(*player) {
+                self.size = self.calculate_new_size(*player);
+                player.size = 0.0;
+                println!("Player was eaten by chomper {:?}", self);
+                // game over
             }
             if enemies[x].id != self.id && enemies[x].size <= self.size {
                 best_target.push(enemies[x].id);
@@ -340,11 +360,12 @@ pub fn main() {
         for x in 0..NUM_ENEMIES {
             enemies[x].draw(&mut canvas, draw_mouth);
             let mut enemy = enemies[x];
-            enemy.ai_step(&mut enemies, &mut rng);
+            enemy.ai_step(&mut enemies, &mut player, &mut rng);
             enemies[x] = enemy;
             enemies[x].move_pacman();
         }
         player.draw(&mut canvas, draw_mouth);
+        player.player_step(&mut enemies, &mut rng);
         player.move_pacman();
 
         canvas.present();
