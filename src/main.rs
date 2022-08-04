@@ -12,7 +12,7 @@ use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum Direction {
     LEFT,
     RIGHT,
@@ -24,13 +24,14 @@ enum Direction {
     DOWNRIGHT
 }
 // a chomper. Size increases when eating other pacmen.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Pacman {
     x: i32,
     y: i32,
     direction: Direction,
-    size: i32,
-    color: Color
+    size: f32,
+    color: Color,
+    id: i32
 }
 fn angle(x: i32,y: i32) -> f64 {
     let xf = x as f64;
@@ -40,17 +41,20 @@ fn angle(x: i32,y: i32) -> f64 {
 impl Pacman {
     fn draw(self: Pacman, canvas: &mut Canvas<Window>, draw_mouth: bool) {
         canvas.set_draw_color(self.color);
-        let size_squared = self.size.pow(2);
+        let size_squared = self.size.powf(2.0) as i32;
+        let selfx = self.x as i32;
+        let selfy = self.y as i32;
+        let size = self.size as i32;
         // draw circle with a part missing
-        for x in self.x-self.size..self.x+self.size {
-            for y in self.y-self.size..self.y+self.size {
-                if (x - self.x).pow(2)+(y - self.y).pow(2) < size_squared { //hypotenuse
+        for x in selfx-size..selfx+size {
+            for y in selfy-size..selfy+size {
+                if (x - selfx).pow(2)+(y - selfy).pow(2) < size_squared { //hypotenuse
                     if draw_mouth {
                         canvas.draw_point(Point::new(x, y)).unwrap();
                         continue;
                     }
                     let mut isbody: bool = false;// not mouth of pacman
-                    let angle=angle(x-self.x, y-self.y);
+                    let angle=angle(x-selfx, y-selfy);
                     match self.direction {
                     Direction::RIGHT => {
                         if angle > 45.0 || angle < -45.0 {
@@ -100,6 +104,110 @@ impl Pacman {
             }
         }
     }
+    fn can_chomp(&mut self, enemy: Pacman) -> bool {
+        if self.size < enemy.size {
+            return false;
+        }
+        let distance = (((self.x - enemy.x).pow(2) + (self.y - enemy.y).pow(2)) as f32).sqrt();
+        return distance + enemy.size == self.size
+            || distance + enemy.size < self.size;
+    }
+    fn calculate_new_size(self: Pacman, other: Pacman) -> f32 {
+            // pi r**2 = area
+            let enemy_area = ((other.size.powf(2.0) as f64)*PI) as f32;
+            let self_area = ((self.size.powf(2.0) as f64)*PI) as f32;
+            let combined_area = enemy_area + self_area;
+            // r**2 = area/pi
+            let rsquared = (combined_area as f64)/PI;
+            return rsquared.sqrt() as f32;
+    }
+    fn player_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
+        for x in 0..enemies.len() {
+            if self.can_chomp(enemies[x]) {
+                self.size = self.calculate_new_size(enemies[x]);
+                enemies[x] = Pacman{
+                    x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+                    y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+                    direction:random_direction(rng).unwrap(),
+                    size:5.0,
+                    color:random_color(rng),
+                    id:(x+1) as i32};
+            }
+        }
+    }
+    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, player: &mut Pacman, rng: &mut ThreadRng) {
+        let mut best_target: Vec<i32> = Vec::new();
+        let mut nearest: usize = usize::MAX;
+        let mut best_distance: f32 = -1.0;
+        for x in 0..enemies.len() {
+            if enemies[x].id != self.id && self.can_chomp(enemies[x]) {
+                self.size = self.calculate_new_size(enemies[x]);
+                enemies[x] = Pacman{
+                    x:rng.gen_range(0..WINDOW_WIDTH) as i32,
+                    y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
+                    direction:random_direction(rng).unwrap(),
+                    size:5.0,
+                    color:random_color(rng),
+                    id:(x+1) as i32};
+                continue;
+            }
+            if self.can_chomp(*player) {
+                self.size = self.calculate_new_size(*player);
+                player.size = 0.0;
+                println!("Player was eaten by chomper {:?}", self);
+                // game over
+            }
+            if enemies[x].id != self.id && enemies[x].size <= self.size {
+                best_target.push(enemies[x].id);
+            }
+        }
+        for x in &best_target {
+            let index = (x-1) as usize;
+            let enemy_distance: f32 = (((enemies[index].x - self.x).pow(2) + (enemies[index].y - self.y).pow(2)) as f32).sqrt();
+            if enemy_distance < best_distance || best_distance < 0.0 {
+                best_distance = enemy_distance;
+                nearest = *x as usize;
+            }
+        }
+        if nearest == usize::MAX {
+            return;
+        }
+        let nearest_enemy: Pacman = enemies[nearest-1];
+        //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
+        if nearest_enemy.x < self.x {
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UPLEFT;
+            }
+            else if nearest_enemy.y == self.y {
+                self.direction = Direction::LEFT;
+            }
+            else {
+                self.direction = Direction::DOWNLEFT;
+            }
+        }
+        else if nearest_enemy.x == self.x {
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UP;
+            }
+            else if nearest_enemy.y == self.y {
+                // ???
+            }
+            else {
+                self.direction = Direction::DOWN;
+            }
+        }
+        else {// enemy.x > self.x
+            if nearest_enemy.y < self.y {
+                self.direction = Direction::UPRIGHT;
+            }
+            else if nearest_enemy.y == self.y {
+                self.direction = Direction::RIGHT;
+            }
+            else {
+                self.direction = Direction::DOWNRIGHT;
+            }
+        }
+    }
     fn move_pacman(&mut self) {
         match self.direction {
             Direction::RIGHT => {
@@ -134,19 +242,20 @@ fn random_color(rng: &mut ThreadRng) -> Color {
     let blue: u8 = rng.gen();
     return Color::RGB(red, green, blue);
 }
+const NUM_ENEMIES:usize = 100;
+const WINDOW_WIDTH:u32 = 800;
+const WINDOW_HEIGHT:u32 = 600;
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40, color:Color::RGB(255,255,0)};
-    const NUM_ENEMIES:usize = 100;
-    const WINDOW_WIDTH:u32 = 800;
-    const WINDOW_HEIGHT:u32 = 600;
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0};
     let mut rng = rand::thread_rng();
 
-    let enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
+    let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
         x:rng.gen_range(0..WINDOW_WIDTH) as i32,
         y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
         direction:random_direction(&mut rng).unwrap(),
-        size:5,
-        color:random_color(&mut rng)}).collect();
+        size:5.0,
+        color:random_color(&mut rng),
+        id:(x+1) as i32}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -167,6 +276,9 @@ pub fn main() {
     let mut up_pressed: bool = false;
     let mut right_pressed: bool = false;
     let mut down_pressed: bool = false;
+    let mut draw_mouth: bool = false;
+
+    let mut frame_counter: i64 = 0;
 
     'running: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -241,15 +353,24 @@ pub fn main() {
             }
         }
         // The rest of the game loop goes here...
-
+        if frame_counter % 15 == 0 {
+            draw_mouth = !draw_mouth;
+        }
         // Draw pacman here.
         for x in 0..NUM_ENEMIES {
-            enemies[x].draw(&mut canvas, false);
+            enemies[x].draw(&mut canvas, draw_mouth);
+            let mut enemy = enemies[x];
+            enemy.ai_step(&mut enemies, &mut player, &mut rng);
+            enemies[x] = enemy;
+            enemies[x].move_pacman();
         }
-        player.draw(&mut canvas, false);
+        player.draw(&mut canvas, draw_mouth);
+        player.player_step(&mut enemies, &mut rng);
         player.move_pacman();
 
         canvas.present();
+        
+        frame_counter = frame_counter + 1;
         // Sleep for 1/60th of a second.
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
