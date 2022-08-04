@@ -31,7 +31,9 @@ struct Pacman {
     direction: Direction,
     size: f32,
     color: Color,
-    id: i32
+    id: i32,
+    mouth_angle: f64,
+    mouth_closing: bool
 }
 fn angle(x: i32,y: i32) -> f64 {
     let xf = x as f64;
@@ -39,69 +41,96 @@ fn angle(x: i32,y: i32) -> f64 {
     return 180.0*yf.atan2(xf)/PI;
 }
 impl Pacman {
-    fn draw(self: Pacman, canvas: &mut Canvas<Window>, draw_mouth: bool) {
+    fn animate_mouth(self: &mut Pacman) {
+        if self.mouth_closing {
+            self.mouth_angle += 5.0;
+            if self.mouth_angle > 45.0 {
+                self.mouth_closing = false;
+                self.mouth_angle = 45.0 - (self.mouth_angle - 45.0);
+            }
+        }
+        else {
+            self.mouth_angle -= 5.0;
+            if self.mouth_angle < 0.0 {
+                self.mouth_closing = true;
+                self.mouth_angle = self.mouth_angle.abs();
+            }
+        }
+    }
+    fn draw(self: Pacman, canvas: &mut Canvas<Window>) {
         canvas.set_draw_color(self.color);
         let size_squared = self.size.powf(2.0) as i32;
         let selfx = self.x as i32;
         let selfy = self.y as i32;
         let size = self.size as i32;
+        let mut lines: Vec<(Point, Point)> = vec![];
         // draw circle with a part missing
         for x in selfx-size..selfx+size {
             for y in selfy-size..selfy+size {
                 if (x - selfx).pow(2)+(y - selfy).pow(2) < size_squared { //hypotenuse
-                    if draw_mouth {
-                        canvas.draw_point(Point::new(x, y)).unwrap();
-                        continue;
-                    }
                     let mut isbody: bool = false;// not mouth of pacman
                     let angle=angle(x-selfx, y-selfy);
                     match self.direction {
                     Direction::RIGHT => {
-                        if angle > 45.0 || angle < -45.0 {
+                        if angle > 45.0-self.mouth_angle || angle < -45.0+self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::LEFT => {
-                        if angle < 135.0 && angle > -135.0 {
+                        if angle < 135.0+self.mouth_angle && angle > -135.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::UP => {
-                        if !(angle > -135.0 && angle < -45.0) {
+                        if angle < -135.0+self.mouth_angle || angle > -45.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::DOWN => {
-                        if !(angle > 45.0 && angle < 135.0) {
+                        if angle < 45.0+self.mouth_angle || angle > 135.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::UPLEFT => {
-                        if angle < -180.0 || angle > -90.0 {
+                        if angle < -180.0+self.mouth_angle || angle > -90.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::UPRIGHT => {
-                        if angle < -90.0 || angle > 0.0 {
+                        if angle < -90.0+self.mouth_angle || angle > 0.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::DOWNLEFT => {
-                        if angle < 90.0 || angle > 180.0 {
+                        if angle < 90.0+self.mouth_angle || angle > 180.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     Direction::DOWNRIGHT => {
-                        if angle < 0.0 || angle > 90.0 {
+                        if angle < 0.0+self.mouth_angle || angle > 90.0-self.mouth_angle {
                             isbody = true;
                         }
                     },
                     }
                     if isbody {
-                        canvas.draw_point(Point::new(x, y)).unwrap();
+                        if lines.len() > 0 {
+                            let last = lines.len()-1;
+                            if lines[last].1.x == x && lines[last].1.y == y-1 {
+                                lines[last].1.y = y;
+                            }
+                            else {
+                                lines.push((Point::new(x, y), Point::new(x, y)));
+                            }
+                        }
+                        else {
+                            lines.push((Point::new(x, y), Point::new(x, y)));
+                        }
                     }
                 }
             }
+        }
+        for line in &lines {
+            canvas.draw_line(line.0, line.1).unwrap();
         }
     }
     fn can_chomp(&mut self, enemy: Pacman) -> bool {
@@ -131,7 +160,9 @@ impl Pacman {
                     direction:random_direction(rng).unwrap(),
                     size:5.0,
                     color:random_color(rng),
-                    id:(x+1) as i32};
+                    id:(x+1) as i32,
+                    mouth_closing: true,
+                    mouth_angle: 0.0};
             }
         }
     }
@@ -148,7 +179,9 @@ impl Pacman {
                     direction:random_direction(rng).unwrap(),
                     size:5.0,
                     color:random_color(rng),
-                    id:(x+1) as i32};
+                    id:(x+1) as i32,
+                    mouth_closing: true,
+                    mouth_angle: 0.0};
                 continue;
             }
             if self.can_chomp(*player) {
@@ -246,7 +279,7 @@ const NUM_ENEMIES:usize = 100;
 const WINDOW_WIDTH:u32 = 800;
 const WINDOW_HEIGHT:u32 = 600;
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0};
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0};
     let mut rng = rand::thread_rng();
 
     let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
@@ -255,7 +288,9 @@ pub fn main() {
         direction:random_direction(&mut rng).unwrap(),
         size:5.0,
         color:random_color(&mut rng),
-        id:(x+1) as i32}).collect();
+        id:(x+1) as i32,
+        mouth_closing: true,
+        mouth_angle: 0.0}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -358,13 +393,15 @@ pub fn main() {
         }
         // Draw pacman here.
         for x in 0..NUM_ENEMIES {
-            enemies[x].draw(&mut canvas, draw_mouth);
+            enemies[x].animate_mouth();
+            enemies[x].draw(&mut canvas);
             let mut enemy = enemies[x];
             enemy.ai_step(&mut enemies, &mut player, &mut rng);
             enemies[x] = enemy;
             enemies[x].move_pacman();
         }
-        player.draw(&mut canvas, draw_mouth);
+        player.animate_mouth();
+        player.draw(&mut canvas);
         player.player_step(&mut enemies, &mut rng);
         player.move_pacman();
 
