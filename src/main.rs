@@ -11,6 +11,7 @@ use std::time::Duration;
 use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
+use rand::prelude::random;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Direction {
@@ -161,8 +162,8 @@ impl Pacman {
                     size:5.0,
                     color:random_color(rng),
                     id:(x+1) as i32,
-                    mouth_closing: true,
-                    mouth_angle: 0.0};
+                    mouth_closing: random(),
+                    mouth_angle: random_angle(rng)};
             }
         }
     }
@@ -180,8 +181,8 @@ impl Pacman {
                     size:5.0,
                     color:random_color(rng),
                     id:(x+1) as i32,
-                    mouth_closing: true,
-                    mouth_angle: 0.0};
+                    mouth_closing: random(),
+                    mouth_angle: random_angle(rng)};
                 continue;
             }
             if self.can_chomp(*player) {
@@ -275,6 +276,9 @@ fn random_color(rng: &mut ThreadRng) -> Color {
     let blue: u8 = rng.gen();
     return Color::RGB(red, green, blue);
 }
+fn random_angle(rng: &mut ThreadRng) -> f64 {
+    rng.gen_range(0..45) as f64
+}
 const NUM_ENEMIES:usize = 100;
 const WINDOW_WIDTH:u32 = 800;
 const WINDOW_HEIGHT:u32 = 600;
@@ -289,8 +293,8 @@ pub fn main() {
         size:5.0,
         color:random_color(&mut rng),
         id:(x+1) as i32,
-        mouth_closing: true,
-        mouth_angle: 0.0}).collect();
+        mouth_closing: random(),
+        mouth_angle: random_angle(&mut rng)}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
