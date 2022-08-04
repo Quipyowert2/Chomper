@@ -63,6 +63,7 @@ impl Pacman {
         let selfx = self.x as i32;
         let selfy = self.y as i32;
         let size = self.size as i32;
+        let mut lines: Vec<(Point, Point)> = vec![];
         // draw circle with a part missing
         for x in selfx-size..selfx+size {
             for y in selfy-size..selfy+size {
@@ -112,10 +113,24 @@ impl Pacman {
                     },
                     }
                     if isbody {
-                        canvas.draw_point(Point::new(x, y)).unwrap();
+                        if lines.len() > 0 {
+                            let last = lines.len()-1;
+                            if lines[last].1.x == x && lines[last].1.y == y-1 {
+                                lines[last].1.y = y;
+                            }
+                            else {
+                                lines.push((Point::new(x, y), Point::new(x, y)));
+                            }
+                        }
+                        else {
+                            lines.push((Point::new(x, y), Point::new(x, y)));
+                        }
                     }
                 }
             }
+        }
+        for line in &lines {
+            canvas.draw_line(line.0, line.1).unwrap();
         }
     }
     fn can_chomp(&mut self, enemy: Pacman) -> bool {
