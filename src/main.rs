@@ -34,7 +34,8 @@ struct Pacman {
     color: Color,
     id: i32,
     mouth_angle: f64,
-    mouth_closing: bool
+    mouth_closing: bool,
+    pacmen_eaten: i32
 }
 fn angle(x: i32,y: i32) -> f64 {
     let xf = x as f64;
@@ -154,6 +155,7 @@ impl Pacman {
     fn player_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
         for x in 0..enemies.len() {
             if self.can_chomp(enemies[x]) {
+                self.pacmen_eaten += 1;
                 self.size = self.calculate_new_size(enemies[x]);
                 enemies[x] = Pacman{
                     x:rng.gen_range(0..WINDOW_WIDTH) as i32,
@@ -163,11 +165,13 @@ impl Pacman {
                     color:random_color(rng),
                     id:(x+1) as i32,
                     mouth_closing: random(),
-                    mouth_angle: random_angle(rng)};
+                    mouth_angle: random_angle(rng),
+                    pacmen_eaten: 0};
             }
         }
     }
-    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, player: &mut Pacman, rng: &mut ThreadRng) {
+    // Returns whether the game is over.
+    fn ai_step(&mut self, enemies: &mut Vec<Pacman>, player: &mut Pacman, rng: &mut ThreadRng) -> bool {
         let mut best_target: Vec<i32> = Vec::new();
         let mut nearest: usize = usize::MAX;
         let mut best_distance: f32 = -1.0;
@@ -182,13 +186,17 @@ impl Pacman {
                     color:random_color(rng),
                     id:(x+1) as i32,
                     mouth_closing: random(),
-                    mouth_angle: random_angle(rng)};
+                    mouth_angle: random_angle(rng),
+                    pacmen_eaten: 0};
                 continue;
             }
             if self.can_chomp(*player) {
+                self.pacmen_eaten += 1;
                 self.size = self.calculate_new_size(*player);
-                player.size = 0.0;
                 println!("Player was eaten by chomper {:?}", self);
+                println!("Score {} pacmen eaten: {}", player.size-40.0, player.pacmen_eaten);
+                player.size = 0.0;
+                return true;
                 // game over
             }
             if enemies[x].id != self.id && enemies[x].size <= self.size {
@@ -204,7 +212,7 @@ impl Pacman {
             }
         }
         if nearest == usize::MAX {
-            return;
+            return false;
         }
         let nearest_enemy: Pacman = enemies[nearest-1];
         //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
@@ -241,6 +249,7 @@ impl Pacman {
                 self.direction = Direction::DOWNRIGHT;
             }
         }
+        return false;
     }
     fn move_pacman(&mut self) {
         match self.direction {
@@ -283,7 +292,7 @@ const NUM_ENEMIES:usize = 100;
 const WINDOW_WIDTH:u32 = 800;
 const WINDOW_HEIGHT:u32 = 600;
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0};
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0, pacmen_eaten: 0};
     let mut rng = rand::thread_rng();
 
     let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
@@ -294,7 +303,8 @@ pub fn main() {
         color:random_color(&mut rng),
         id:(x+1) as i32,
         mouth_closing: random(),
-        mouth_angle: random_angle(&mut rng)}).collect();
+        mouth_angle: random_angle(&mut rng),
+        pacmen_eaten: 0}).collect();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -315,7 +325,6 @@ pub fn main() {
     let mut up_pressed: bool = false;
     let mut right_pressed: bool = false;
     let mut down_pressed: bool = false;
-    let mut draw_mouth: bool = false;
 
     let mut frame_counter: i64 = 0;
 
@@ -392,15 +401,14 @@ pub fn main() {
             }
         }
         // The rest of the game loop goes here...
-        if frame_counter % 15 == 0 {
-            draw_mouth = !draw_mouth;
-        }
         // Draw pacman here.
         for x in 0..NUM_ENEMIES {
             enemies[x].animate_mouth();
             enemies[x].draw(&mut canvas);
             let mut enemy = enemies[x];
-            enemy.ai_step(&mut enemies, &mut player, &mut rng);
+            if enemy.ai_step(&mut enemies, &mut player, &mut rng) {
+                return;
+            }
             enemies[x] = enemy;
             enemies[x].move_pacman();
         }
