@@ -12,6 +12,7 @@ use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use rand::prelude::random;
+use std::convert::TryInto;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Direction {
@@ -41,6 +42,14 @@ fn angle(x: i32,y: i32) -> f64 {
     let xf = x as f64;
     let yf = y as f64;
     return 180.0*yf.atan2(xf)/PI;
+}
+fn abs(x: i32) -> i32 {
+    if x >= 0 {
+        return x;
+    }
+    else {
+        return -x;
+    }
 }
 fn area(radius: f64) -> f64 {
     radius.powf(2.0)*PI
@@ -178,6 +187,8 @@ impl Pacman {
         let mut best_target: Vec<i32> = Vec::new();
         let mut nearest: usize = usize::MAX;
         let mut best_distance: f32 = -1.0;
+        let window_width = WINDOW_WIDTH as i32;
+        let window_height = WINDOW_HEIGHT as i32;
         for x in 0..enemies.len() {
             if enemies[x].id != self.id && self.can_chomp(enemies[x]) {
                 self.size = self.calculate_new_size(enemies[x]);
@@ -208,7 +219,23 @@ impl Pacman {
         }
         for x in &best_target {
             let index = (x-1) as usize;
-            let enemy_distance: f32 = (((enemies[index].x - self.x).pow(2) + (enemies[index].y - self.y).pow(2)) as f32).sqrt();
+
+            // Wraparound at edges of screen
+            let mut wrapx = enemies[index].x;
+            let mut wrapy = enemies[index].y;
+            if abs(wrapx + window_width - self.x) < abs(wrapx - self.x) {
+                wrapx += window_width;
+            }
+            else if abs(wrapx - window_width - self.x) < abs(wrapx - self.x) {
+                wrapx -= window_width;
+            }
+            if abs(wrapy + window_height - self.x) < abs(wrapy - self.y) {
+                wrapy += window_height;
+            }
+            else if abs(wrapy - window_height - self.x) < abs(wrapy - self.y) {
+                wrapy -= window_height;
+            }
+            let enemy_distance: f32 = (((wrapx - self.x).pow(2) + (wrapy - self.y).pow(2)) as f32).sqrt();
             if enemy_distance < best_distance || best_distance < 0.0 {
                 best_distance = enemy_distance;
                 nearest = *x as usize;
@@ -219,22 +246,36 @@ impl Pacman {
         }
         let nearest_enemy: Pacman = enemies[nearest-1];
         //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
-        if nearest_enemy.x < self.x {
-            if nearest_enemy.y < self.y {
+        let mut wrapx = nearest_enemy.x;
+        let mut wrapy = nearest_enemy.y;
+        if abs(wrapx + window_width - self.x) < abs(wrapx - self.x) {
+            wrapx += window_width;
+        }
+        else if abs(wrapx - window_width - self.x) < abs(wrapx - self.x) {
+            wrapx -= window_width;
+        }
+        if abs(wrapy + window_height - self.x) < abs(wrapy - self.y) {
+            wrapy += window_height;
+        }
+        else if abs(wrapy - window_height - self.x) < abs(wrapy - self.y) {
+            wrapy -= window_height;
+        }
+        if wrapx < self.x {
+            if wrapy < self.y {
                 self.direction = Direction::UPLEFT;
             }
-            else if nearest_enemy.y == self.y {
+            else if wrapy == self.y {
                 self.direction = Direction::LEFT;
             }
             else {
                 self.direction = Direction::DOWNLEFT;
             }
         }
-        else if nearest_enemy.x == self.x {
-            if nearest_enemy.y < self.y {
+        else if wrapx == self.x {
+            if wrapy < self.y {
                 self.direction = Direction::UP;
             }
-            else if nearest_enemy.y == self.y {
+            else if wrapy == self.y {
                 // ???
             }
             else {
@@ -242,10 +283,10 @@ impl Pacman {
             }
         }
         else {// enemy.x > self.x
-            if nearest_enemy.y < self.y {
+            if wrapy < self.y {
                 self.direction = Direction::UPRIGHT;
             }
-            else if nearest_enemy.y == self.y {
+            else if wrapy == self.y {
                 self.direction = Direction::RIGHT;
             }
             else {
@@ -265,6 +306,16 @@ impl Pacman {
             Direction::DOWN => {self.y = self.y + 1}
             Direction::DOWNLEFT => {self.y = self.y + 1;self.x = self.x - 1}
             Direction::DOWNRIGHT => {self.y = self.y + 1;self.x = self.x + 1}
+        }
+
+        // Wraparound at edges of screen
+        let width: i32 = WINDOW_WIDTH.try_into().unwrap();
+        let height: i32 = WINDOW_HEIGHT.try_into().unwrap();
+        if self.x < 0 || self.x > width {
+            self.x = width - self.x;
+        }
+        if self.y < 0 || self.y > height {
+            self.y = height - self.y;
         }
     }
 }
