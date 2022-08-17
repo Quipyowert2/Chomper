@@ -42,6 +42,9 @@ fn angle(x: i32,y: i32) -> f64 {
     let yf = y as f64;
     return 180.0*yf.atan2(xf)/PI;
 }
+fn area(radius: f64) -> f64 {
+    radius.powf(2.0)*PI
+}
 impl Pacman {
     fn animate_mouth(self: &mut Pacman) {
         if self.mouth_closing {
@@ -194,7 +197,7 @@ impl Pacman {
                 self.pacmen_eaten += 1;
                 self.size = self.calculate_new_size(*player);
                 println!("Player was eaten by chomper {:?}", self);
-                println!("Score {} pacmen eaten: {}", player.size-40.0, player.pacmen_eaten);
+                println!("Score {} pacmen eaten: {}", area(player.size as f64) - area(40.0), player.pacmen_eaten);
                 player.size = 0.0;
                 return true;
                 // game over
