@@ -164,6 +164,23 @@ impl Pacman {
             let rsquared = (combined_area as f64)/PI;
             return rsquared.sqrt() as f32;
     }
+    fn wraparound(self: Pacman, x: i32, y: i32, window_width: i32, window_height: i32) -> (i32, i32) {
+        let mut wrapx = x;
+        let mut wrapy = y;
+            if abs(wrapx + window_width - self.x) < abs(wrapx - self.x) {
+                wrapx += window_width;
+            }
+            else if abs(wrapx - window_width - self.x) < abs(wrapx - self.x) {
+                wrapx -= window_width;
+            }
+            if abs(wrapy + window_height - self.x) < abs(wrapy - self.y) {
+                wrapy += window_height;
+            }
+            else if abs(wrapy - window_height - self.x) < abs(wrapy - self.y) {
+                wrapy -= window_height;
+            }
+        return (wrapx, wrapy);
+    }
     fn player_step(&mut self, enemies: &mut Vec<Pacman>, rng: &mut ThreadRng) {
         for x in 0..enemies.len() {
             if self.can_chomp(enemies[x]) {
@@ -221,20 +238,7 @@ impl Pacman {
             let index = (x-1) as usize;
 
             // Wraparound at edges of screen
-            let mut wrapx = enemies[index].x;
-            let mut wrapy = enemies[index].y;
-            if abs(wrapx + window_width - self.x) < abs(wrapx - self.x) {
-                wrapx += window_width;
-            }
-            else if abs(wrapx - window_width - self.x) < abs(wrapx - self.x) {
-                wrapx -= window_width;
-            }
-            if abs(wrapy + window_height - self.x) < abs(wrapy - self.y) {
-                wrapy += window_height;
-            }
-            else if abs(wrapy - window_height - self.x) < abs(wrapy - self.y) {
-                wrapy -= window_height;
-            }
+            let (wrapx, wrapy) = self.wraparound(enemies[index].x, enemies[index].y, WINDOW_WIDTH as i32, WINDOW_HEIGHT as i32);
             let enemy_distance: f32 = (((wrapx - self.x).pow(2) + (wrapy - self.y).pow(2)) as f32).sqrt();
             if enemy_distance < best_distance || best_distance < 0.0 {
                 best_distance = enemy_distance;
@@ -246,20 +250,7 @@ impl Pacman {
         }
         let nearest_enemy: Pacman = enemies[nearest-1];
         //println!("Pacman x={} y={} color={:?} distance={} nearest={:?}", self.x, self.y, self.color, best_distance, nearest_enemy);
-        let mut wrapx = nearest_enemy.x;
-        let mut wrapy = nearest_enemy.y;
-        if abs(wrapx + window_width - self.x) < abs(wrapx - self.x) {
-            wrapx += window_width;
-        }
-        else if abs(wrapx - window_width - self.x) < abs(wrapx - self.x) {
-            wrapx -= window_width;
-        }
-        if abs(wrapy + window_height - self.x) < abs(wrapy - self.y) {
-            wrapy += window_height;
-        }
-        else if abs(wrapy - window_height - self.x) < abs(wrapy - self.y) {
-            wrapy -= window_height;
-        }
+        let (wrapx, wrapy) = self.wraparound(nearest_enemy.x, nearest_enemy.y, WINDOW_WIDTH as i32, WINDOW_HEIGHT as i32);
         if wrapx < self.x {
             if wrapy < self.y {
                 self.direction = Direction::UPLEFT;
