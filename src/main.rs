@@ -208,6 +208,7 @@ impl Pacman {
         let window_height = WINDOW_HEIGHT as i32;
         for x in 0..enemies.len() {
             if enemies[x].id != self.id && self.can_chomp(enemies[x]) {
+                self.pacmen_eaten += 1;
                 self.size = self.calculate_new_size(enemies[x]);
                 enemies[x] = Pacman{
                     x:rng.gen_range(0..WINDOW_WIDTH) as i32,
