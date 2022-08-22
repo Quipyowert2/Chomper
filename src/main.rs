@@ -79,8 +79,8 @@ impl Pacman {
         let size = self.size as i32;
         let mut lines: Vec<(Point, Point)> = vec![];
         // draw circle with a part missing
-        for x in selfx-size..selfx+size {
-            for y in selfy-size..selfy+size {
+        for x in selfx-size..=selfx+size {
+            for y in selfy-size..=selfy+size {
                 if (x - selfx).pow(2)+(y - selfy).pow(2) < size_squared { //hypotenuse
                     let mut isbody: bool = false;// not mouth of pacman
                     let angle=angle(x-selfx, y-selfy);
