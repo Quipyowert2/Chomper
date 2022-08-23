@@ -1,6 +1,6 @@
 [package]
 name = "chomper"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Nathan Mills <38995150+Quipyowert2@users.noreply.github.com>"]
 [dependencies]
 rand = "0.8.5"

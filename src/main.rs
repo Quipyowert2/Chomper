@@ -9,7 +9,7 @@ use sdl2::rect::Point;
 use sdl2::rect::Rect;
 use sdl2::video::Window;
 use sdl2::ttf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::f64::consts::PI;
 use rand::Rng;
 use rand::rngs::ThreadRng;
@@ -383,6 +383,10 @@ pub fn main() {
     let mut down_pressed: bool = false;
 
     let mut frame_counter: i64 = 0;
+    let mut fps_enabled = false;
+    let mut fps_calculated_counter = 0; // fps counter when last calculated
+
+    let mut now = Instant::now();
 
     'running: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -392,6 +396,9 @@ pub fn main() {
                 Event::Quit {..} |
                 Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
+                },
+                Event::KeyDown { keycode: Some(Keycode::F7), ..} => {
+                    fps_enabled = !fps_enabled;
                 },
                 Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
                     left_pressed = true;
@@ -480,6 +487,23 @@ pub fn main() {
         let result = partial.solid(Color::RGB(255, 255, 255)).unwrap();
         let tex = tc.create_texture_from_surface(result).unwrap();
         canvas.copy(&tex, None, Rect::new((WINDOW_WIDTH-fontwidth) as i32, 0, fontwidth, fontheight)).unwrap();
+
+        let elapsed = now.elapsed();
+        let seconds = elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9;
+        let fps = (frame_counter - fps_calculated_counter) as f64 / seconds;
+        if elapsed > Duration::from_secs(1) {
+            now = Instant::now();
+            fps_calculated_counter = frame_counter;
+        }
+
+        if fps_enabled {
+            let fps_text = format!("{}{}", "FPS: ", fps as i64);
+            let partial = font.render(&fps_text);
+            let (fontwidth, fontheight) = font.size_of(&fps_text).unwrap();
+            let result = partial.solid(Color::RGB(255, 255, 255)).unwrap();
+            let tex = tc.create_texture_from_surface(result).unwrap();
+            canvas.copy(&tex, None, Rect::new(0, 0, fontwidth, fontheight)).unwrap();
+        }
 
         canvas.present();
         
