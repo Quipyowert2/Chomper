@@ -343,6 +343,8 @@ pub fn main() {
     let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0, pacmen_eaten: 0};
     let mut rng = rand::thread_rng();
 
+    let version = option_env!("CARGO_PKG_VERSION").unwrap();
+
     let mut enemies: Vec<Pacman> = (0..NUM_ENEMIES).into_iter().map(|x| Pacman{
         x:rng.gen_range(0..WINDOW_WIDTH) as i32,
         y:rng.gen_range(0..WINDOW_HEIGHT) as i32,
@@ -357,7 +359,8 @@ pub fn main() {
     let sdl_context = sdl2::init().unwrap();
     let ttf_context = sdl2::ttf::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem.window("Chomper", WINDOW_WIDTH, WINDOW_HEIGHT)
+    let title = format!("{} {}", "Chomper", version);
+    let window = video_subsystem.window(&title, WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .build()
         .unwrap();
