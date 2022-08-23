@@ -6,7 +6,9 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
 use sdl2::rect::Point;
+use sdl2::rect::Rect;
 use sdl2::video::Window;
+use sdl2::ttf;
 use std::time::Duration;
 use std::f64::consts::PI;
 use rand::Rng;
@@ -353,6 +355,7 @@ pub fn main() {
         pacmen_eaten: 0}).collect();
 
     let sdl_context = sdl2::init().unwrap();
+    let ttf_context = sdl2::ttf::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem.window("rust-sdl2 demo", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
@@ -360,6 +363,10 @@ pub fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas().build().unwrap();
+
+    // Helvetica for Linux, Arial for Windows, ??? for macOS
+    let font = ttf_context.load_font("C:\\Windows\\Fonts\\arial.ttf", 12).unwrap();
+    let tc = canvas.texture_creator();
 
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
@@ -462,6 +469,14 @@ pub fn main() {
         player.draw(&mut canvas);
         player.player_step(&mut enemies, &mut rng);
         player.move_pacman();
+
+        // Draw score on screen
+        let score_text = format!("{}{}", "Score: ", ((area(player.size as f64) - area(40.0)) as i32));
+        let partial = font.render(&score_text);
+        let (fontwidth, fontheight) = font.size_of(&score_text).unwrap();
+        let result = partial.solid(Color::RGB(255, 255, 255)).unwrap();
+        let tex = tc.create_texture_from_surface(result).unwrap();
+        canvas.copy(&tex, None, Rect::new((WINDOW_WIDTH-fontwidth) as i32, 0, fontwidth, fontheight)).unwrap();
 
         canvas.present();
         
