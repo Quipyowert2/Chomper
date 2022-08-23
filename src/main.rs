@@ -228,7 +228,7 @@ impl Pacman {
                 self.pacmen_eaten += 1;
                 self.size = self.calculate_new_size(*player);
                 println!("Player was eaten by chomper {:?}", self);
-                println!("Score {} pacmen eaten: {}", area(player.size as f64) - area(40.0), player.pacmen_eaten);
+                println!("Score {} pacmen eaten: {}", player.score(), player.pacmen_eaten);
                 player.size = 0.0;
                 return true;
                 // game over
@@ -312,6 +312,9 @@ impl Pacman {
             self.y = height - self.y;
         }
     }
+    fn score(self: Pacman) -> i64 {
+        (area(self.size as f64) - area(INITIAL_PLAYER_SIZE)) as i64
+    }
 }
 fn random_direction(rng: &mut ThreadRng) -> Option<Direction> {
     let dir: u8 = rng.gen_range(1..8);
@@ -339,8 +342,9 @@ fn random_angle(rng: &mut ThreadRng) -> f64 {
 const NUM_ENEMIES:usize = 100;
 const WINDOW_WIDTH:u32 = 800;
 const WINDOW_HEIGHT:u32 = 600;
+const INITIAL_PLAYER_SIZE:f64 = 40.0;
 pub fn main() {
-    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:40.0, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0, pacmen_eaten: 0};
+    let mut player = Pacman {x:400, y:300, direction:Direction::RIGHT, size:INITIAL_PLAYER_SIZE as f32, color:Color::RGB(255,255,0), id:0, mouth_closing: true, mouth_angle: 0.0, pacmen_eaten: 0};
     let mut rng = rand::thread_rng();
 
     let version = option_env!("CARGO_PKG_VERSION").unwrap();
@@ -481,7 +485,7 @@ pub fn main() {
         player.move_pacman();
 
         // Draw score on screen
-        let score_text = format!("{}{}", "Score: ", ((area(player.size as f64) - area(40.0)) as i32));
+        let score_text = format!("{}{}", "Score: ", player.score());
         let partial = font.render(&score_text);
         let (fontwidth, fontheight) = font.size_of(&score_text).unwrap();
         let result = partial.solid(Color::RGB(255, 255, 255)).unwrap();
