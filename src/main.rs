@@ -153,7 +153,8 @@ impl Pacman {
         if self.size < enemy.size {
             return false;
         }
-        let distance = (((self.x - enemy.x).pow(2) + (self.y - enemy.y).pow(2)) as f32).sqrt();
+        let (enemyx, enemyy) = self.wraparound(enemy.x, enemy.y, WINDOW_WIDTH as i32, WINDOW_HEIGHT as i32);
+        let distance = (((self.x - enemyx).pow(2) + (self.y - enemyy).pow(2)) as f32).sqrt();
         return distance + enemy.size == self.size
             || distance + enemy.size < self.size;
     }
